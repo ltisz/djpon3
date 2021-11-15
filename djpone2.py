@@ -297,7 +297,7 @@ def garfplug(date,GP):
 def generateHash(fTypeA,fTypeDir):
     N = 5
     fName = ''.join(random.choice(string.ascii_uppercase + string.ascii_lowercase + string.digits) for _ in range(N))
-    if "{}.{}".format(fName, fTypeA) in os.listdir("/mnt/md0/kame-images/public/images/{}".format(fTypeDir)):
+    if "{}.{}".format(fName, fTypeA) in os.listdir("{}{}".format(os.environ.get('imgPath'),fTypeDir)):
         return generateHash(fType)
     else:
         return fName
@@ -533,7 +533,7 @@ def trixiUpload(url):
     fName = generateHash(fType, fType)
     if "fjcdn" in url:
         return False
-    path = '/mnt/md0/kame-images/public/images/{}/{}.{}'.format(fType, fName, fType)
+    path = '{}{}/{}.{}'.format(os.environ.get('imgPath'),fType, fName, fType)
     with open(path, 'wb') as f:
         f.write(r.content)
     if fType == "png":
@@ -555,7 +555,7 @@ def doImage(textNick, url, msg):
         urlOrig = recordTuple[-2].split(" :: ")[1]
         print("Already on trixi: {} || urlOrig: {}".format(url, urlOrig))
         fName = url.split('/')[-1]
-        path = '/mnt/md0/kame-images/public/images/{}/{}.{}'.format(fType, fName, fType)
+        path = '{}{}/{}.{}'.format(os.environ.get('imgPath'),fType, fName, fType)
     else:
         url, path = trixiUpload(url)
         print("Making trixi copy: {}".format(url))
@@ -1209,8 +1209,8 @@ while xxx == True:
                         filename = "~/.weechat/logs/rawr.txt"
                     else:
                         filename = "~/.weechat/logs/irc.slashnet.#kame-house.weechatlog"
-                    cmd = 'grep -aUE -m1 -B 20 -A 50 "{}" {} > /mnt/md0/trixi/explain.txt'.format(
-                        grepResult, filename
+                    cmd = 'grep -aUE -m1 -B 20 -A 50 "{}" {} > {}explain.txt'.format(
+                        grepResult, filename, os.environ.get('expPath')
                         )
                     print(cmd)
                     os.popen(cmd).read()
@@ -1471,9 +1471,6 @@ while xxx == True:
                         poneCommand.strip("/"),
                         filename
                         )
-                    #local = "/mnt/md0/trixi/4ch/{}".format(filename)
-                    #urlretrieve(imageurl, local)
-                    #imglink = "https://trixi.cc/4ch/{} - ".format(filename)
                     imglink, _ = doImage("dj-p0n3", imageurl, '')
                 except Exception as e:
                     imglink = "No image - "
