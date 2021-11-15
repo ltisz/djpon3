@@ -69,7 +69,7 @@ poneCommands = ["$quote", "$mention", "$Quote", "$Mention",                     
                 "$hey", "$explain", "$ponyall", "$pony",                            #12-15
                 "$remind", "$paheal", "$rule34", "$dan",                            #16-19
                 "$wiki", "$page", "$korannext", "$koran",                           #20-23
-                "$bible", "$all","$stock", "$nook",                                 #24-27
+                "$bible", "$all","$stock", "$retweet",                              #24-27
                 "$garf", "$pluggers", "$sup", "$tweet",                             #28-31
                 "$aqi", "$gis", "$g", "$yt",                                        #32-35
                 "$we", "$adom", "$next", "$timer",                                  #36-39
@@ -675,7 +675,7 @@ while xxx == True:
                             print("A command! {} - {}".format(action, poneCommand))
                             goodCommand = 1
                             break
-                        except:
+                        except Exception as e:
                             if command in flexCommands:
                                 poneCommand = ''
                                 break
@@ -1536,6 +1536,11 @@ while xxx == True:
                         poneMsg.append("Tweeted! https://twitter.com/jerwill64/status/{}".format(status.id_str))
                     except Exception as e:
                         poneMsg.append("Error tweeting - {}".format(e))
+
+            if action == "$retweet" and channel == "#kame-house":
+                tweetID = poneCommand.split("/status/")[-1].split()[0]
+                status = api.retweet(tweetID)
+                poneMsg.append("Tweeted! https://twitter.com/jerwill64/status/{}".format(status.id_str))
 
             if action == "$commandlist":
                 poneMsg.append("($first, $last) {}, {}".format(", ".join(poneCommands[0:2]), ", ".join(poneCommands[12:47])))
