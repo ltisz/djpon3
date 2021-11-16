@@ -76,7 +76,7 @@ poneCommands = ["$quote", "$mention", "$Quote", "$Mention",                     
                 "$timeleft", "$choose", "$tell", "$tv_next",                        #40-43
                 "$tv_last", "$honk", "$commandlist", "$help",                       #44-47
                 "$fun milo", "$bogpill", "$rand", "$legalweed",                     #48-51
-                "$urwfeels","$commandlist","!search"]                               #52-54
+                "$urwfeels","$commandlist","!search", "$trends"]                    #52-54
 
 flexCommands = ["$bible","$koran","$we","$aqi", "$pluggers","$garf","$hey","$timeleft","$honk"]
 
@@ -90,7 +90,7 @@ boards = ["$rule34","$paheal","$dan","$pony"]
 ey = re.compile( "p[o][n]([e]?)[y]" )
 checkEm = re.compile("check.?(th)?(?(1)(em|ese|ose|ine)\\b|(em|my))")
 
-class TwitStreamListener(tweepy.StreamListener):
+class TweetStream(tweepy.Stream):
     def on_status(self, status):
         print('status!')
         try:
@@ -613,10 +613,15 @@ if testMode != True:
 closeSQL(cnxLoads, cursor)
 
 ###TWEET STREAM INITIATION###
-chibiListener = TwitStreamListener()
-chibiStream = tweepy.Stream(auth = api.auth, listener=chibiListener)
-tweetstreamTimer = threading.Timer(1800, tweetstreamRestart)
-tweetstreamRestart()
+#chibiListener = TwitStreamListener()
+#chibiStream = tweepy.Stream(auth = api.auth, listener=chibiListener)
+#tweetstreamTimer = threading.Timer(1800, tweetstreamRestart)
+#tweetstreamRestart()
+deathStream = TweetStream(
+os.environ.get('consumer_token'), os.environ.get('consumer_token_private'),
+os.environ.get('tweekey'), os.environ.get('tweesecret')
+)
+deathStream.filter(follow=['1155237236155342848'], threaded=True)
 
 ###CONNECT TO IRC###
 if testMode == False:
@@ -1536,6 +1541,15 @@ while xxx == True:
                         poneMsg.append("Tweeted! https://twitter.com/jerwill64/status/{}".format(status.id_str))
                     except Exception as e:
                         poneMsg.append("Error tweeting - {}".format(e))
+
+            if action == "$trends":
+                trends = ""
+                _, lat, lon, _, _ = geocodeLocation(weatherLocation, textNick, poneCommand, False)
+                WOEID = api.closest_trends(lat, lon)[0]["woeid"]
+                status = api.get_place_trends(WOEID)
+                for i in range(5):
+                    trends = trends + "{} ({}) ".format(status[0]["trends"][i]["name"], status[0]["trends"][i]["url"])
+                poneMsg.append(trends)
 
             if action == "$retweet" and channel == "#kame-house":
                 tweetID = poneCommand.split("/status/")[-1].split()[0]
