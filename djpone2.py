@@ -150,7 +150,7 @@ def googlequery(query,searchtype): #searchtype 0 for regular search, 1 for image
             url = "https://www.googleapis.com/customsearch/v1?&q={}&num=1&key={}&cx={}".format(query, os.environ.get('gapikey'), os.environ.get('cx'))
         elif searchtype == 1:
             url = "https://www.googleapis.com/customsearch/v1?&q={}&searchType=image&start={}&num=1&key={}&cx={}".format(query, resultnum, os.environ.get('gapikey'), os.environ.get('cx'))
-        r = requests.get(url, headers=headers)
+        r = requests.get(url, headers=headers, timeout=(2,5))
         json_obj = r.json()
         for search_result in json_obj["items"]:
             return search_result["link"]
@@ -187,7 +187,7 @@ def tdProcess(td):
 
 def getTimeZone(lat,lon):
     url = 'https://maps.googleapis.com/maps/api/timezone/json?location={},{}&timestamp={}&key={}'
-    r = requests.get(url.format(lat,lon,datetime.datetime.now().timestamp(),os.environ.get('gapikey')))
+    r = requests.get(url.format(lat,lon,datetime.datetime.now().timestamp(),os.environ.get('gapikey')), timeout=(2,5))
     return r.json()["timeZoneId"]
 
 def geocode(location):
@@ -314,7 +314,7 @@ def allboards(action, poneCommand):
         url = "https://rule34.paheal.net/post/list/{}/1".format(tag)
     if action == "$rule34":
         try:
-            r = requests.get(url, headers = { "User-Agent" : "dj-p0n3/0.4.2 (by zamros on e621)" }, timeout=2)
+            r = requests.get(url, headers = { "User-Agent" : "dj-p0n3/0.4.2 (by zamros on e621)" }, timeout=(2,5))
             root = ET.fromstring(r.text)
             total = int(root.attrib["count"])
             perpage = len(root)
@@ -323,7 +323,7 @@ def allboards(action, poneCommand):
             else:
                 Pageno = random.randint(0,math.ceil(total/100)-1)
             url = url2.format(tag,str(Pageno))
-            r = requests.get(url, headers={ "User-Agent" : "dj-p0n3/0.4.2 (by zamros on e621)" })
+            r = requests.get(url, headers={ "User-Agent" : "dj-p0n3/0.4.2 (by zamros on e621)" }, timeout=(2,5))
             root = ET.fromstring(r.text)
             perpage = len(root)
             for roo in root:
@@ -385,7 +385,7 @@ def allboards(action, poneCommand):
                 url = "https://derpibooru.org/api/v1/json/search/images?q={}&key={}".format(tag, os.environ.get('derpiKey'))
                 url2 = "https://derpibooru.org/api/v1/json/search/images?q={0}&page={1}&key="+os.environ.get('derpiKey')
                 toTerm = ["total"]
-            r = requests.get(url, headers=headers)
+            r = requests.get(url, headers=headers, timeout=(2,5))
             json_obj = r.json()
             try:
                 perpage = len(json_obj["search"])
@@ -405,7 +405,7 @@ def allboards(action, poneCommand):
                 else:
                     Pageno = random.randint(1,math.ceil(total/perpage))
                 url = url2.format(tag, str(Pageno))
-                r = requests.get(url, headers=headers)
+                r = requests.get(url, headers=headers, timeout=(2,5))
                 json_obj = r.json()
                 if action == "$dan":
                     json_obj = json_obj
@@ -456,7 +456,7 @@ def updateTimerSQL(textNick, alert, channel, tyme, timeset, timerEndstr, kind, t
 
 def isUrlImage(image_url):
     image_formats = ("image/png", "image/jpeg", "image/jpg", "image/gif", "video/webm")
-    r = requests.get(image_url)
+    r = requests.get(image_url, timeout=(2,5))
     try:
         print(r.headers["content-type"])
         if r.headers["content-type"] in image_formats:
@@ -522,7 +522,7 @@ def isDupe(url):
 
 def trixiUpload(url):
     print("Uploading to trixi...")
-    r = requests.get(url)
+    r = requests.get(url, timeout=(2,5))
     fType = isUrlImage(url)
     if fType == False:
         for i in imageTypes:
@@ -728,7 +728,7 @@ while xxx == True:
                         if msg == url:
                             msg = ""
                         url2 = "https://api.twitter.com/2/tweets?ids={}&expansions=author_id".format(tweetID)
-                        response = requests.get(url2, headers=tweetHeaders)
+                        response = requests.get(url2, headers=tweetHeaders, timeout=(2,5))
                         json_obj = response.json()
                         tweeText = json_obj["data"][0]["text"].replace("\n"," / ")
                         tweeUser = json_obj["includes"]["users"][0]["name"]
@@ -750,7 +750,7 @@ while xxx == True:
                             print(vidID)
                             url2 = "https://youtube.googleapis.com/youtube/v3/videos?part=snippet&id={}&key={}".format(vidID,os.environ.get('gapikey'))
                             print(url)
-                            response = requests.get(url2)
+                            response = requests.get(url2, timeout=(2,5))
                             print(response)
                             json_obj = response.json()
                             vidTitle = json_obj["items"][0]["snippet"]["title"]
@@ -777,7 +777,7 @@ while xxx == True:
                         tagge = "resource link"
                         url = word.lstrip(":")
                         print(url)
-                        r = requests.get(url, headers=headers, timeout=2)
+                        r = requests.get(url, headers=headers, timeout=(2,5))
                         soup = BeautifulSoup(r.text, 'html.parser')
                         meta = soup.find_all("meta")
                         for tag in meta:
@@ -805,7 +805,7 @@ while xxx == True:
             if "prices" in text.lower():
                 symbol = text.split("prices")[-2].split(":")[-1].split(" ")[-2]
                 url = "https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol={}&apikey={}".format(symbol,os.environ.get('stockAPIkey'))
-                r = requests.get(url)
+                r = requests.get(url, timeout=(2,5))
                 json_obj = r.json()
                 gloQuo = json_obj["Global Quote"]
                 if gloQuo == {}:
@@ -821,7 +821,7 @@ while xxx == True:
                 try:
                     tagdata = poneCommand.replace(" ","+")
                     url = "https://www.shutterstock.com/search/" + tagdata
-                    r = requests.get(url, headers=headers)
+                    r = requests.get(url, headers=headers, timeout=(2,5))
                     soup = BeautifulSoup(r.text, "html.parser")
                     images = soup.find_all("img")
                     resultList = []
@@ -882,7 +882,7 @@ while xxx == True:
                 if place != 0:
                     try:
                         url = "https://api.darksky.net/forecast/a374bb1ecd2787c709432380730cad22/{},{}".format(lat,lon)
-                        r = requests.get(url)
+                        r = requests.get(url, timeout=(2,5))
                         json_obj = r.json()
                         todayDay = time.strftime("%m/%d/%y", time.gmtime(json_obj["currently"]["time"]))
                         todaySummary = json_obj["daily"]["data"][0]["summary"]
@@ -938,7 +938,7 @@ while xxx == True:
                 randResponse = urlopen(randUrl)
                 soup = BeautifulSoup(randResponse.read(), 'html.parser')
                 pageName = soup.title.string[:-12].replace(" ","_")
-                r = requests.get(endUrl.format(pageName))
+                r = requests.get(endUrl.format(pageName), timeout=(2,5))
                 json_obj = r.json()
                 linkUrl = "https://en.wikipedia.org/wiki/{}".format(soup.title.string[:-12].replace(" ","_"))
                 print(linkUrl)
@@ -969,7 +969,7 @@ while xxx == True:
                         (key, val) = splat
                         d[key] = val
                 url = "https://en.wikipedia.org/w/api.php?format=json&action=query&titles=Template:Cannabis_in_the_United_States&prop=revisions&rvprop=content"
-                r = requests.get(url)
+                r = requests.get(url, timeout=(2,5))
                 json_obj = r.json()
                 page = str(json_obj).split("group2")
                 sta = []
@@ -1253,14 +1253,14 @@ while xxx == True:
                 while j < i:
                     imgurName = ''.join(random.choice(string.ascii_uppercase + string.ascii_lowercase + string.digits) for _ in range(5))
                     imgUrl = "https://i.imgur.com/{}.png".format(imgurName)
-                    r = requests.get(imgUrl, allow_redirects = False)
+                    r = requests.get(imgUrl, allow_redirects = False, timeout=(2,5))
                     keepGoing = 1
                     while keepGoing == 1:
                         if r.status_code == 302:
                             print('No good: ' + imgUrl)
                             imgurName = ''.join(random.choice(string.ascii_uppercase + string.ascii_lowercase + string.digits) for _ in range(5))
                             imgUrl = "https://i.imgur.com/{}.png".format(imgurName)
-                            r = requests.get(imgUrl, allow_redirects = False)
+                            r = requests.get(imgUrl, allow_redirects = False, timeout=(2,5))
                         elif r.status_code == 200:
                             #irc.send (channel, imgUrl)
                             poneMsg.append(imgUrl)
@@ -1274,7 +1274,7 @@ while xxx == True:
                     #add youtube v3 api key
                     ytapikey = os.environ.get('ytapikey')
                     try:
-                        r = requests.get("https://www.googleapis.com/youtube/v3/search?part=snippet&maxResults=1&type=video&q={}&key={}".format(poneCommand, ytapikey))
+                        r = requests.get("https://www.googleapis.com/youtube/v3/search?part=snippet&maxResults=1&type=video&q={}&key={}".format(poneCommand, ytapikey), timeout=(2,5))
                         search_response = r.json()
                         for search_result in search_response["items"]:
                             vidURL = "https://www.youtube.com/watch?v={}".format(search_result["id"]["videoId"])
@@ -1292,7 +1292,7 @@ while xxx == True:
             if action == "$bible":
                 if poneCommand == "":
                     url = "http://labs.bible.org/api/?passage=random&type=json"
-                    r = requests.get(url,headers)
+                    r = requests.get(url,headers,timeout=(2,5))
                     try:
                         json_obj = r.json()
                         poneMsg.append(
@@ -1307,7 +1307,7 @@ while xxx == True:
                         poneMsg.append('Verse not found.')
                 else:
                     url = "https://bible-api.com/{}?translation=kjv".format(quote(''.join(poneCommand)))
-                    r = requests.get(url,headers)
+                    r = requests.get(url,headers,timeout=(2,5))
                     json_obj = r.json()
                     try:
                         poneMsg.append(
@@ -1325,7 +1325,7 @@ while xxx == True:
                 else:
                     ayah = poneCommand.split()[0]
                 url = 'http://api.alquran.cloud/v1/ayah/{}/{}'.format(ayah,'en.yusufali')
-                r = requests.get(url)
+                r = requests.get(url, timeout=(2,5))
                 json_obj = r.json()
                 if json_obj["code"] == 200:
                     ayahResult = json_obj["data"]
@@ -1341,7 +1341,7 @@ while xxx == True:
                 try:
                     ayah += 1
                     url = "http://api.alquran.cloud/v1/ayah/{}/{}".format(ayah,"en.yusufali")
-                    r = requests.get(url)
+                    r = requests.get(url, timeout=(2,5))
                     json_obj = r.json()
                     if json_obj["code"] == 200:
                         ayahResult = json_obj["data"]
@@ -1368,7 +1368,7 @@ while xxx == True:
                     intro = "The last episode of "
                     transition = " aired "
                 try:
-                    r = requests.get(url)
+                    r = requests.get(url, timeout=(2,5))
                     json_obj = r.json()
                     if json_obj == "null":
                         poneMsg.append("Show not found.")
@@ -1417,7 +1417,7 @@ while xxx == True:
 
             if action == "$hey":
                 url = "https://www.reddit.com/r/{}.json".format(poneCommand)
-                r = requests.get(url, headers=headers)
+                r = requests.get(url, headers=headers, timeout=(2,5))
                 try:
                     json_obj = r.json()
                     children = json_obj["data"]["children"]
@@ -1452,7 +1452,7 @@ while xxx == True:
             
             if action == "$sup":
                 url = "https://a.4cdn.org/{}/1.json".format(poneCommand.strip('/'))
-                r = requests.get(url)
+                r = requests.get(url, timeout=(2,5))
                 fourChan = r.json()
                 thread = random.choice(fourChan["threads"])
                 print(thread)
