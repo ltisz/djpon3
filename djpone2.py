@@ -313,7 +313,7 @@ def weatherMessage(lat,lon):
             tomorrowDay,tomorrowDesc1,tomorrowDesc2,tomorrowPop,tomorrowHighF,tomorrowHighC,tomorrowLowF,tomorrowLowC,tomorrowHumidity,tomorrowWindmph,tomorrowWindkph,tomorrowWindDir,alertDesc]
 
 def sunLookup(lat,lon):
-    url = "https://api.openweathermap.org/data/3.0/onecall?lat={}&lon={}&appid=dd76539bb5bd101f6a161dde48647406".format(lat,lon)
+    url = "https://api.openweathermap.org/data/3.0/onecall?lat={}&lon={}&appid={}".format(lat,lon,os.environ.get("wxKey"))
     r = requests.get(url, timeout=(2,5))
     json_obj = r.json()
     sunrise = time.strftime("%I:%M %p", time.gmtime(json_obj["current"]["sunrise"]+json_obj["timezone_offset"]))
