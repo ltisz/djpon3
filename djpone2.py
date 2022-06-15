@@ -24,6 +24,7 @@ import tweepy
 import traceback
 import mysql.connector
 import string
+from operator import itemgetter
 
 ### IRC INFO
 channels = ["#kame-house","#death","#ponycafe","#cupcake","#equestria","#titties"]
@@ -71,17 +72,18 @@ poneCommands = ["$quote", "$mention", "$Quote", "$Mention",                     
                 "$wiki", "$page", "$korannext", "$koran",                           #20-23
                 "$bible", "$all","$stock", "$retweet",                              #24-27
                 "$garf", "$pluggers", "$sup", "$tweet",                             #28-31
-                "$aqi", "$gis", "$g", "$yt",                                        #32-35
+                "$gis", "$g", "$yt",                                                #32-35
                 "$we", "$adom", "$next", "$timer",                                  #36-39
                 "$timeleft", "$choose", "$tell", "$tv_next",                        #40-43
                 "$tv_last", "$honk", "$commandlist", "$help",                       #44-47
                 "$fun milo", "$bogpill", "$rand", "$legalweed",                     #48-51
-                "$urwfeels","$commandlist","!search", "$trends"]                    #52-54
+                "$urwfeels","$commandlist","!search", "$trends",                   #52-54
+                "$frandom", "$dice", "$cathy","$heath","$morningwug","$sun"]
 
-flexCommands = ["$bible","$koran","$we","$aqi", "$pluggers","$garf","$hey","$timeleft","$honk"]
+flexCommands = ["$bible","$koran","$we","$sun","$cathy","$heath","$pluggers","$garf","$hey","$timeleft","$honk"]
 
 noInput = ["$help", "$korannext", "$bogpill", "$page",
-           "$fun milo", "$explain", "$next", "$wiki",
+           "$fun milo", "$explain", "$next", "$wiki", "$morningwug",
            "$rand", "$legalweed", "$urwfeels", "$commandlist"]
 
 boards = ["$rule34","$paheal","$dan","$pony"]
@@ -97,6 +99,11 @@ class TweetStream(tweepy.Stream):
             tweet = status.extended_tweet["full_text"]
         except:
             tweet = status.text
+        print("https://twitter.com/{}/status/{}".format(
+            status.user.screen_name,
+            status.id_str
+            )
+        )
         i = 1
         while i == 1:
             if tweet[0]=="@":
@@ -107,9 +114,21 @@ class TweetStream(tweepy.Stream):
         if "RT @" not in tweet[:4]:
             irc.send("#death",tweet)
 
+def longMsgs(message):
+    tempMsg = ""
+    parts = []
+    splitMsg = message.split()
+    for word in splitMsg:
+        tempMsg = tempMsg + word + " "
+        if len(tempMsg) > 400:
+            parts.append(tempMsg)
+            tempMsg = ""
+    parts.append(tempMsg)
+    return parts
+
 def tweetstreamRestart():
     try:
-        chibiStream.filter(follow=['1155237236155342848'],is_async=True)
+        deathStream.filter(follow=['1493398160705826822'],is_async=True)
         print("tweet stream timer restarted")
     except:
         print("tweet stream still running.")
@@ -251,6 +270,56 @@ def updateLocationSQL(query):
     closeSQL(cnxWeather, cursor)
     return weatherLocation
 
+def degToCompass(num):
+    dirs = ['N', 'NNE', 'NE', 'ENE', 'E', 'ESE', 'SE', 'SSE', 'S', 'SSW', 'SW', 'WSW', 'W', 'WNW', 'NW', 'NNW']
+    ix = round(num / (360. / len(dirs)))
+    return dirs[ix % len(dirs)]
+
+def weatherMessage(lat,lon):
+    url = "https://api.openweathermap.org/data/3.0/onecall?lat={}&lon={}&appid={}".format(lat,lon,os.environ.get("wxKey"))
+    r = requests.get(url, timeout=(2,5))
+    json_obj = r.json()
+    todayDay = time.strftime("%m/%d/%y", time.gmtime(json_obj["current"]["dt"]))
+    current = json_obj["current"]
+    currentTempC = str(round(current["temp"]-273.15, 1))
+    currentTempF = str((round((current["temp"]-273.15)*(9/5)+32,1)))
+    currentFeelC = str(round(current["feels_like"]-273.15,1))
+    currentFeelF = str((round((current["feels_like"]-273.15)*(9/5)+32,1)))
+    currentHumid = str(current["humidity"]) + "%"
+    currentWindDir = degToCompass(current["wind_deg"])
+    currentWindkph = str(current["wind_speed"])
+    currentWindmph = str(round(current["wind_speed"]*1.60934,1))
+    currentDesc1 = current["weather"][0]["main"]
+    currentDesc2 = current["weather"][0]["description"]
+    tomorrow = json_obj["daily"][1]
+    tomorrowDay = time.strftime("%m/%d/%y", time.gmtime(tomorrow["dt"]))
+    tomorrowHighC = str(round(tomorrow["temp"]["max"]-273.15,1))
+    tomorrowHighF = str((round((tomorrow["temp"]["max"]-273.15)*(9/5)+32,1)))
+    tomorrowLowC = str(round(tomorrow["temp"]["min"]-273.15,1))
+    tomorrowLowF = str((round((tomorrow["temp"]["min"]-273.15)*(9/5)+32,1)))
+    tomorrowHumidity = str(tomorrow["humidity"])+"%"
+    tomorrowWindkph = str(tomorrow["wind_speed"])
+    tomorrowWindmph = str(round(tomorrow["wind_speed"]*1.60934,1))
+    tomorrowWindDir = degToCompass(tomorrow["wind_deg"])
+    tomorrowDesc1 = tomorrow["weather"][0]["main"]
+    tomorrowDesc2 = tomorrow["weather"][0]["description"]
+    tomorrowPop = str(tomorrow["pop"])+"%"
+    try:
+        alerts = json_obj["alerts"][0]
+        alertDesc = alerts["description"].replace("\n"," ")
+    except:
+        alertDesc = ""
+    return [todayDay,currentDesc1,currentDesc2,currentTempF,currentTempC,currentFeelF,currentFeelC,currentHumid,currentWindmph,currentWindkph,currentWindDir,
+            tomorrowDay,tomorrowDesc1,tomorrowDesc2,tomorrowPop,tomorrowHighF,tomorrowHighC,tomorrowLowF,tomorrowLowC,tomorrowHumidity,tomorrowWindmph,tomorrowWindkph,tomorrowWindDir,alertDesc]
+
+def sunLookup(lat,lon):
+    url = "https://api.openweathermap.org/data/3.0/onecall?lat={}&lon={}&appid=dd76539bb5bd101f6a161dde48647406".format(lat,lon)
+    r = requests.get(url, timeout=(2,5))
+    json_obj = r.json()
+    sunrise = time.strftime("%I:%M %p", time.gmtime(json_obj["current"]["sunrise"]+json_obj["timezone_offset"]))
+    sunset = time.strftime("%I:%M %p", time.gmtime(json_obj["current"]["sunset"]+json_obj["timezone_offset"]))
+    return [sunrise, sunset]
+
 def dubschecker(numb, length):
     i = len(numb)-1
     while length > 0:
@@ -267,6 +336,60 @@ def dubschecker(numb, length):
         checky = ""
         return checky,numb
         
+def goComics(date,comic):
+    if comic == "cathy":
+        start = datetime.datetime.strptime("11/22/1976", "%m/%d/%Y")
+        end = datetime.datetime.now()
+    elif comic == "heathcliff":
+        start = datetime.datetime.strptime("01/01/2002", "%m/%d/%Y")
+        end = datetime.datetime.now()
+    print("Retrieving {} from {}".format(comic, date))
+    urlTerm = "https://www.gocomics.com/{}/{}/{}/{}"
+    comicDate = start + datetime.timedelta(seconds=random.randint(0,int((end-start).total_seconds())))
+    if "/" in date:
+        for fmt in ("%m/%d/%y","%m/%d/%Y"):
+            try:
+                comicDate = datetime.datetime.strptime(date,fmt)
+                print(comicDate)
+            except:
+                pass
+    elif "today" in date:
+        comicDate = datetime.datetime.now()
+    url = urlTerm.format(comic, comicDate.strftime("%Y"), comicDate.strftime("%m"),comicDate.strftime("%d")
+        )
+    try:
+        r = requests.get(url)
+        soup = BeautifulSoup(r.text, 'html.parser')
+        url = soup.find_all("img")[4].get("src")
+        irc.send(channel, url)
+    except:
+        irc.send (channel, "Comic not found. For best results, input date in MM/DD/YYYY format.")
+
+def imgurGen():
+    imgurName = ''.join(random.choice(string.ascii_uppercase + string.ascii_lowercase + string.digits) for _ in range(random.choice([5,6,6])))
+    imgUrl = "https://i.imgur.com/{}.png".format(imgurName)
+    r = requests.get(imgUrl, allow_redirects = False, timeout=(2,5))
+    if r.status_code == 302:
+        return imgurGen()
+    elif r.status_code == 200:
+        return imgUrl
+
+def randImgur(num):
+    num = num.split()[0]
+    if num == "":
+        i = 1
+    elif num.isnumeric() == False:
+        i = 1
+    else:
+        i = int(num)
+        if i > 5:
+            i = 5
+    j = 0
+    while j < i:
+        imgUrl = imgurGen()
+        irc.send(channel, imgUrl)
+        j+=1
+
 def garfplug(date,GP):
     if GP == "garf":
         start = datetime.datetime.strptime("06/19/1978", "%m/%d/%Y")
@@ -455,19 +578,20 @@ def updateTimerSQL(textNick, alert, channel, tyme, timeset, timerEndstr, kind, t
     return timerid, timersList
 
 def isUrlImage(image_url):
-    image_formats = ("image/png", "image/jpeg", "image/jpg", "image/gif", "video/webm")
+    image_formats = ("image/png", "image/jpeg", "image/jpg", "image/gif", "video/webm", "image/webp")
     r = requests.get(image_url, timeout=(2,5))
     try:
         print(r.headers["content-type"])
-        if r.headers["content-type"] in image_formats:
-            fType = r.headers["content-type"].split('/')[-1]
+        if r.headers["content-type"].split(';')[0] in image_formats:
+            fType = r.headers["content-type"].split('/')[-1].split(';')[0]
             if fType == "jpg":
                 fType = "jpeg"
             return fType
     except:
         for i in imageTypes:
-            if i in image_url[-6]:
+            if i in image_url[-6:]:
                 fType = i
+                return fType
     return False
 
 def mySQLwrite(nick, url, urlOrig, msg, vtit, vdesc, tag):
@@ -530,6 +654,7 @@ def trixiUpload(url):
                 fType = i
             else:
                 fType = "png"
+
     fName = generateHash(fType, fType)
     if "fjcdn" in url:
         return False
@@ -552,16 +677,24 @@ def doImage(textNick, url, msg):
         url = recordTuple[4]
         urlOrig = recordTuple[-2].split(" :: ")[1]
     if "trixi.cc" in url:
-        urlOrig = recordTuple[-2].split(" :: ")[1]
-        print("Already on trixi: {} || urlOrig: {}".format(url, urlOrig))
+        if len(recordTuple) > 0:
+            urlOrig = recordTuple[-2].split(" :: ")[1]
+            print("Already on trixi: {} || urlOrig: {}".format(url, urlOrig))
+        else:
+            urlOrig = url
+            print("Already on trixi: {} But not on ircman.".format(url))
         fName = url.split('/')[-1]
         path = '{}{}/{}.{}'.format(os.environ.get('imgPath'),fType, fName, fType)
     else:
         url, path = trixiUpload(url)
         print("Making trixi copy: {}".format(url))
     print(fType)
-    if fType == "video/webm":
-        tag = "resource media webm"
+    #if fType == "video/webm":
+    try:
+        if "webm" in fType:
+            tag = "resource media webm"
+    except:
+        print("Oops")
     closeSQL(cnx, cursor)
     mySQLwrite(textNick, url, urlOrig, msg, "", "", tag)
     return url, path
@@ -613,15 +746,11 @@ if testMode != True:
 closeSQL(cnxLoads, cursor)
 
 ###TWEET STREAM INITIATION###
-#chibiListener = TwitStreamListener()
-#chibiStream = tweepy.Stream(auth = api.auth, listener=chibiListener)
-#tweetstreamTimer = threading.Timer(1800, tweetstreamRestart)
-#tweetstreamRestart()
 deathStream = TweetStream(
 os.environ.get('consumer_token'), os.environ.get('consumer_token_private'),
 os.environ.get('tweekey'), os.environ.get('tweesecret')
 )
-deathStream.filter(follow=['1155237236155342848'], threaded=True)
+deathStream.filter(follow=['1493398160705826822'], threaded=True)
 
 ###CONNECT TO IRC###
 if testMode == False:
@@ -648,8 +777,6 @@ while xxx == True:
         for text in rawText:
             poneMsg = []
             timenow = central.localize(datetime.datetime.now().replace(microsecond=0))
-            #if timenow.strftime("%H:%M") == "12:00":
-            #    irc.send("#kame-house","Kobe Bryant is dead.")
             action = ''
             poneCommand = ''
             goodCommand = 0
@@ -737,27 +864,24 @@ while xxx == True:
                         url = url.split(tweetID)[0]+tweetID
                         mySQLwrite(textNick, url, url, msg, "", "", tag)
                     elif "youtu" in word.lower():
-                        if ("cq1g8czIBJY" in word or "d2lJUOv0hLA" in word):
-                            poneMsg.append("Fuck you.")
-                        else:
-                            print(word)
-                            tag = "resource media video"
-                            url = word.lstrip(":")
-                            msg = text.split("{} :".format(channel))[-1].split("{} ".format(url))[-1].split(" http")[0].lstrip(":")
-                            if msg == url:
-                                msg = ""
-                            vidID = url.split('/')[-1].split('=')[-1]
-                            print(vidID)
-                            url2 = "https://youtube.googleapis.com/youtube/v3/videos?part=snippet&id={}&key={}".format(vidID,os.environ.get('gapikey'))
-                            print(url)
-                            response = requests.get(url2, timeout=(2,5))
-                            print(response)
-                            json_obj = response.json()
-                            vidTitle = json_obj["items"][0]["snippet"]["title"]
-                            vidDesc = json_obj["items"][0]["snippet"]["description"].split("\n")[0]
-                            vidUplo = json_obj["items"][0]["snippet"]["channelTitle"]
-                            poneMsg.append("{} - {} - uploaded by {}".format(vidTitle,vidDesc,vidUplo))
-                            mySQLwrite(textNick, url, url, msg, vidTitle, vidDesc, tag)
+                        print(word)
+                        tag = "resource media video"
+                        url = word.lstrip(":")
+                        msg = text.split("{} :".format(channel))[-1].split("{} ".format(url))[-1].split(" http")[0].lstrip(":")
+                        if msg == url:
+                            msg = ""
+                        vidID = url.split('/')[-1].split('=')[-1]
+                        print(vidID)
+                        url2 = "https://youtube.googleapis.com/youtube/v3/videos?part=snippet&id={}&key={}".format(vidID,os.environ.get('gapikey'))
+                        print(url)
+                        response = requests.get(url2, timeout=(2,5))
+                        print(response)
+                        json_obj = response.json()
+                        vidTitle = json_obj["items"][0]["snippet"]["title"]
+                        vidDesc = json_obj["items"][0]["snippet"]["description"].split("\n")[0]
+                        vidUplo = json_obj["items"][0]["snippet"]["channelTitle"]
+                        poneMsg.append("{} - {} - uploaded by {}".format(vidTitle,vidDesc,vidUplo))
+                        mySQLwrite(textNick, url, url, msg, vidTitle, vidDesc, tag)
                     elif ("http" in word) and (isUrlImage(word.lstrip(":"))):
                         tag = "resource media image"
                         url = word.lstrip(":")
@@ -766,12 +890,12 @@ while xxx == True:
                             msg = ""
                         if "trixi" in word:
                             urlOrig = url
-                            if "/w/" in word:
+                            if "/w/" in url:
                                 tag = "resource media webm"
                             mySQLwrite(textNick, url, urlOrig, msg, "", "", tag)
                         else:
                             doImage(textNick, url, msg)
-                    elif "http" in word and "zip" not in word and "rar" not in word and "webcam" not in word:
+                    elif ("http" in word) and ("zip" not in word) and ("rar" not in word) and ("webcam" not in word):
                         pageTitle = "No title"
                         pageDescr = "No description"
                         tagge = "resource link"
@@ -840,87 +964,31 @@ while xxx == True:
                 except:
                     poneMsg.append("No images found.")
 
-
-#            if action == "$aqi":
-#                place, query = geocodeLocation(weatherLocation, textNick, poneCommand)
-#                if place != 0:
-#                    weatherLocation = updateLocationSQL(query)
-#                    url = "http://api.airvisual.com/v2/nearest_city?lat={}&lon={}&key={}".format(place[0],place[1],os.environ.get('aqiKey'))
-#                    r = requests.get(url)
-#                    json_obj = r.json()
-#                    aqi = json_obj["data"]["current"]["pollution"]["aqius"]
-#                    if aqi <= 50:
-#                        cStr = "\x0303"
-#                        term = "Good"
-#                    elif 50<aqi<101:
-#                        cStr = "\x0308"
-#                        term = "Moderate"
-#                    elif 100<aqi<151:
-#                        cStr = "\x0304"
-#                        term = "Unhealthy for Sensitive Groups"
-#                    elif 150<aqi<201:
-#                        cStr = "\x0305"
-#                        term = "Unhealthy"
-#                    elif 200<aqi<301:
-#                        cStr = "\x0306!! "
-#                        term = "Very Unhealthy !!"
-#                    elif aqi>300:
-#                        cStr = "\x0313!! "
-#                        term = "Hazardous !!"
-#                    irc.send(channel,"{} - AQI: {}{} - {}".format(place, cStr, str(aqi), term))
-#                else:
-#                    irc.send(channel,"Error retrieving air quality.")
-
-##WEATHER
+            if action == "$sun":
+                udWeather = False
+                place,lat,lon,query,tZone = geocodeLocation(weatherLocation, textNick.lower(), poneCommand.split("set ")[len(poneCommand.split("set "))-1], udWeather)
+                if place != 0:
+                    try:
+                        sunTime = sunLookup(lat,lon)
+                        poneMsg.append("{} - Sunrise: {} Sunset: {}".format(place, sunTime[0],sunTime[1]))
+                    except:
+                        poneMsg.append("Error retrieving sunrise/sunset times.")
+##WEATHER   
             if action == "$we":
                 if poneCommand.split(" ")[0] == "set":
                     udWeather = True
                 else:
                     udWeather = False
-                place,lat,lon,query,tZone = geocodeLocation(weatherLocation, textNick, poneCommand.split("set ")[len(poneCommand.split("set "))-1], udWeather)
+                place,lat,lon,query,tZone = geocodeLocation(weatherLocation, textNick.lower(), poneCommand.split("set ")[len(poneCommand.split("set "))-1], udWeather)
                 print(place)
                 if place != 0:
                     try:
-                        url = "https://api.darksky.net/forecast/a374bb1ecd2787c709432380730cad22/{},{}".format(lat,lon)
-                        r = requests.get(url, timeout=(2,5))
-                        json_obj = r.json()
-                        todayDay = time.strftime("%m/%d/%y", time.gmtime(json_obj["currently"]["time"]))
-                        todaySummary = json_obj["daily"]["data"][0]["summary"]
-                        tempF = str(json_obj["currently"]["temperature"])
-                        tempC = str(round(((json_obj["currently"]["temperature"])-32)*(5/9),2))
-                        humidity = str(round(json_obj["currently"]["humidity"]*100,2)) + "%"
-                        precipProb = str(round(json_obj["currently"]["precipProbability"]*100,2)) + "%"
-                        windSpeedMPH = str(json_obj["currently"]["windSpeed"]) + " MPH"
-                        windspeedKPH = str(round((json_obj["currently"]["windSpeed"]*1.60934),2)) + " Km/H"
-                        tomorrowDay = time.strftime("%m/%d/%y", time.gmtime(json_obj["daily"]["data"][1]["time"]))
-                        tomorrowSummary = json_obj["daily"]["data"][1]["summary"]
-                        tomorrowHighF = str(json_obj["daily"]["data"][1]["temperatureHigh"])
-                        tomorrowLowF = str(json_obj["daily"]["data"][1]["temperatureLow"])
-                        tomorrowHighC = str(round(((json_obj["daily"]["data"][1]["temperatureHigh"])-32)*(5/9),2))
-                        tomorrowLowC = str(round(((json_obj["daily"]["data"][1]["temperatureLow"])-32)*(5/9),2))
-                        tomorrowHumid = str(round(json_obj["daily"]["data"][1]["humidity"]*100,2)) + "%"
-                        tomorrowprecipProb = str(round(json_obj["daily"]["data"][1]["precipProbability"]*100,2)) + "%"
-                        poneMsg.append(
-                                    "{} {}: {} {}\xb0F ({}\xb0C), Humidity {}, {} chance of precipitation. Wind speed {} ({}). Tomorrow {} - {} High {}\xb0F ({}\xb0C), Low {}\xb0F ({}\xb0C), Humidity {}, {} chance of precipitation.".format(
-                                    place, 
-                                    todayDay, 
-                                    todaySummary, 
-                                    tempF, 
-                                    tempC, 
-                                    humidity, 
-                                    precipProb, 
-                                    windSpeedMPH, 
-                                    windspeedKPH, 
-                                    tomorrowDay, 
-                                    tomorrowSummary, 
-                                    tomorrowHighF, 
-                                    tomorrowHighC, 
-                                    tomorrowLowF, 
-                                    tomorrowLowC, 
-                                    tomorrowHumid, 
-                                    tomorrowprecipProb
-                                    )
-                            )
+                        datas = weatherMessage(lat,lon)
+                        wxMsg = "{} {}: {} - {}. {}\xb0F ({}\xb0C) Feels like: {}\xb0F ({}\xb0C). Humidity {}. Wind: {} mph ({} kph) {}. Tomorrow {}: {} - {}. {} chance of precip. High {}\xb0F ({}\xb0C). Low {}\xb0F ({}\xb0C). Humidity {}. Wind: {} mph ({} kph) {}.".format(place, *datas[:-1])
+                        print(wxMsg)
+                        poneMsg.append(wxMsg)
+                        if datas[-1] != "":
+                            poneMsg.append(datas[-1])
                     except:
                         poneMsg.append("Error retrieving weather.")
                 else:
@@ -931,7 +999,19 @@ while xxx == True:
             
             if action == "$pluggers":
                 garfplug(poneCommand,"plug")
-            
+           
+            if action == "$cathy":
+                goComics(poneCommand,"cathy")
+            if action == "$heath":
+                goComics(poneCommand,"heathcliff")
+
+            if action == "$morningwug":
+                garfplug("today","garf")
+                garfplug("today","plug")
+                goComics("today","cathy")
+                goComics("today","heathcliff")
+                randImgur("5")
+
             if action == "$wiki":
                 randUrl = "https://en.wikipedia.org/wiki/Special:Random"
                 endUrl = 'https://en.wikipedia.org/w/api.php?format=json&action=query&prop=extracts&explaintext=1&formatversion=2&titles={}'
@@ -1035,7 +1115,8 @@ while xxx == True:
                     except:
                         numtimers = 1
                 timeremindList = []
-                for timar in timersList:
+                timersListSort = sorted(timersList)
+                for timar in timersListSort:
                     if timar[1] == textNick:
                         timeremindList.append((timar, datetime.datetime.strptime(timar[6], "%Y-%m-%d %H:%M:%S %z")-timenow))
                 if len(timeremindList) == 0:
@@ -1093,7 +1174,7 @@ while xxx == True:
                                     except Exception as e:
                                         pass
                     if remindEnd == "":
-                        poneMsg.append("Unrecognized length of time. For best results, use M/D/Y H:M format!")
+                        poneMsg.append("Unrecognized length of time. For best results, use M/D/Y HH:MM format!")
                     else:
                         print(remindEnd)
                         TZ = pytz.timezone(tZone)
@@ -1243,50 +1324,28 @@ while xxx == True:
                 poneMsg.append(random.choice(open('quickrundown.txt').read().splitlines()))
 
             if action == "$honk":
-                if poneCommand == "":
-                    i = 1
-                else:
-                    i = int(poneCommand)
-                    if i > 5:
-                        i = 5
-                j = 0
-                while j < i:
-                    imgurName = ''.join(random.choice(string.ascii_uppercase + string.ascii_lowercase + string.digits) for _ in range(5))
-                    imgUrl = "https://i.imgur.com/{}.png".format(imgurName)
-                    r = requests.get(imgUrl, allow_redirects = False, timeout=(2,5))
-                    keepGoing = 1
-                    while keepGoing == 1:
-                        if r.status_code == 302:
-                            print('No good: ' + imgUrl)
-                            imgurName = ''.join(random.choice(string.ascii_uppercase + string.ascii_lowercase + string.digits) for _ in range(5))
-                            imgUrl = "https://i.imgur.com/{}.png".format(imgurName)
-                            r = requests.get(imgUrl, allow_redirects = False, timeout=(2,5))
-                        elif r.status_code == 200:
-                            #irc.send (channel, imgUrl)
-                            poneMsg.append(imgUrl)
-                            j+=1
-                            keepGoing = 0
-                        
+                randImgur(poneCommand)
+
             if action == "$yt" and goodCommand == 1:
-                if "sumer" in poneCommand.lower():
-                    poneMsg.append("Fuck you")
-                else:
-                    #add youtube v3 api key
-                    ytapikey = os.environ.get('ytapikey')
-                    try:
-                        r = requests.get("https://www.googleapis.com/youtube/v3/search?part=snippet&maxResults=1&type=video&q={}&key={}".format(poneCommand, ytapikey), timeout=(2,5))
-                        search_response = r.json()
-                        for search_result in search_response["items"]:
-                            vidURL = "https://www.youtube.com/watch?v={}".format(search_result["id"]["videoId"])
-                            vidTitle = search_result["snippet"]["title"]
-                            vidDesc = search_result["snippet"]["description"]
-                            poneMsg.append("{} - {} - {}".format(
-                                vidURL, vidTitle, vidDesc
-                                )
+                #if "sumer" in poneCommand.lower():
+                #    poneMsg.append("Fuck you")
+            #else:
+                #add youtube v3 api key
+                ytapikey = os.environ.get('ytapikey')
+                try:
+                    r = requests.get("https://www.googleapis.com/youtube/v3/search?part=snippet&maxResults=1&type=video&q={}&key={}".format(poneCommand, ytapikey), timeout=(2,5))
+                    search_response = r.json()
+                    for search_result in search_response["items"]:
+                        vidURL = "https://www.youtube.com/watch?v={}".format(search_result["id"]["videoId"])
+                        vidTitle = search_result["snippet"]["title"]
+                        vidDesc = search_result["snippet"]["description"]
+                        poneMsg.append("{} - {} - {}".format(
+                            vidURL, vidTitle, vidDesc
                             )
-                    except Exception as e:
-                        print(e)
-                        poneMsg.append("No results found.")
+                        )
+                except Exception as e:
+                    print(e)
+                    poneMsg.append("No results found.")
                     mySQLwrite(textNick,vidURL,vidURL,"($yt {})".format(poneCommand),vidTitle,vidDesc,"resource media video")
 
             if action == "$bible":
@@ -1451,42 +1510,82 @@ while xxx == True:
                             )
             
             if action == "$sup":
-                url = "https://a.4cdn.org/{}/1.json".format(poneCommand.strip('/'))
-                r = requests.get(url, timeout=(2,5))
-                fourChan = r.json()
-                thread = random.choice(fourChan["threads"])
-                print(thread)
-                if "sub" in thread["posts"][0]:
-                    title = "{} | ".format(html.unescape(thread["posts"][0]["sub"]))
-                else:
-                    title = ""
-                if "com" in thread["posts"][0]:
-                    text = html.unescape(thread["posts"][0]["com"][:250])
-                    text = "{} | ".format(re.sub(cleanr, '', text.replace("<br>"," / ")))
-                else:
-                    text = ""
-                link = "https://boards.4chan.org/{}/thread/{}".format(
-                    poneCommand.strip("/"),
-                    thread["posts"][0]["no"]
-                    )
                 try:
-                    filename = str(thread['posts'][0]['tim']) + thread['posts'][0]['ext']
-                    print(filename)
-                    imageurl = "https://i.4cdn.org/{}/{}".format(
+                    url = "https://a.4cdn.org/{}/1.json".format(poneCommand.strip('/'))
+                    r = requests.get(url, timeout=(2,5))
+                    fourChan = r.json()
+                    thread = random.choice(fourChan["threads"])
+                    print(thread)
+                    if "sub" in thread["posts"][0]:
+                        title = "{} | ".format(html.unescape(thread["posts"][0]["sub"]))
+                    else:
+                        title = ""
+                    if "com" in thread["posts"][0]:
+                        text = html.unescape(thread["posts"][0]["com"][:250])
+                        text = "{} | ".format(re.sub(cleanr, '', text.replace("<br>"," / ")))
+                    else:
+                        text = ""
+                    link = "https://boards.4chan.org/{}/thread/{}".format(
                         poneCommand.strip("/"),
-                        filename
+                        thread["posts"][0]["no"]
                         )
-                    imglink, _ = doImage("dj-p0n3", imageurl, '')
-                except Exception as e:
-                    imglink = "No image - "
-                    print("No image")
-                    print(e)
-                poneMsg.append("{}{}{}{}".format(
-                    imglink,
-                    title,
-                    text,
-                    link
-                    ))
+                    try:
+                        filename = str(thread['posts'][0]['tim']) + thread['posts'][0]['ext']
+                        print(filename)
+                        imageurl = "https://i.4cdn.org/{}/{}".format(
+                            poneCommand.strip("/"),
+                            filename
+                            )
+                        imglink, _ = doImage("dj-p0n3", imageurl, '')
+                    except Exception as e:
+                        imglink = "No image - "
+                        print("No image")
+                        print(e)
+                    poneMsg.append("{} {}{}{}".format(
+                        imglink,
+                        title,
+                        text,
+                        link
+                        ))
+                except:
+                    url = "https://www.reddit.com/r/{}.json".format(poneCommand)
+                    r = requests.get(url, headers=headers, timeout=(2,5))
+                    try:
+                        json_obj = r.json()
+                        children = json_obj["data"]["children"]
+                        test = children[0]["data"]
+                    except:
+                        children = []
+                    if len(children) == 0:
+                        poneMsg.append("Invalid (or empty) subreddit.")
+                    elif len(children) > 0:
+                        n = random.randint(0, (len(children))-1)
+                        print(n)
+                        if len(children) > 1:
+                            while "stickied" in children[n]["data"] and children[n]["data"]["stickied"] == True:
+                                n += 1
+                        print(n)
+                        if "submit_text_html" in children[n]["data"]:
+                            poneMsg.append("Invalid (or empty) subreddit.")
+                        else:
+                            post = children[n]["data"]
+                            if "self." in post["domain"]:
+                                permalink = post["selftext"][:120]+"..."
+                            else:
+                                permalink = "http://www.reddit.com{}".format(post["permalink"])
+                            poneMsg.append (
+                                "{} ({}) - {} - {}".format(
+                                str(post["title"]),
+                                str(post["domain"]),
+                                str(post["url"]),
+                                permalink
+                                    )
+                                )
+                        
+            if action == "$frandom":
+                url = "https://{}.fandom.com/Special:Random".format(poneCommand)
+                r = requests.get(url)
+                poneMsg.append(r.url)
 
             if action == "$pony" and goodCommand == 1:
                 result, piclist, Postno = allboards(action,poneCommand)
@@ -1538,9 +1637,13 @@ while xxx == True:
                             kwargDict["media_ids"] = medias
                         kwargDict["status"] = poneCommand
                         status= api.update_status(**kwargDict)
-                        poneMsg.append("Tweeted! https://twitter.com/jerwill64/status/{}".format(status.id_str))
+                        poneMsg.append("Tweeted! https://twitter.com/bradsum64/status/{}".format(status.id_str))
                     except Exception as e:
-                        poneMsg.append("Error tweeting - {}".format(e))
+                        if "186" in str(traceback.format_exc()):
+                            poneMsg.append("Tweet needs to be {} characters shorter.".format(str(len(poneCommand)-280)))
+                        else:
+                            poneMsg.append("Error tweeting - {}".format(str(traceback.format_exc())))
+                        print(traceback.format_exc())
 
             if action == "$trends":
                 trends = ""
@@ -1595,11 +1698,46 @@ while xxx == True:
                 except:
                     poneMsg.append("There have been no recent searches.")
 
+            if action == "$dice":
+                try:
+                    diceList = poneCommand.split("d")
+                    diceAmt = diceList[0]
+                    diceSize = diceList[1]
+                    mod = int(diceSize.split("+")[-1]) if "+" in diceSize else -int(diceSize.split("-")[-1]) if "-" in diceSize else 0
+                    diceSize = diceSize.split("-")[0].split("+")[0]
+                    if (int(diceAmt)) > 1000 or (int(diceSize) > 100000):
+                        poneMsg.append("That's too much dice.")
+                    else:
+                        i = 0
+                        diceRoll = []
+                        while i < int(diceAmt):
+                            diceRoll.append(random.randint(1,int(diceSize)))
+                            i = i+1
+                        diceResult = str(sum(diceRoll)+mod)
+                        if len(diceRoll) < 11:
+                            rollStr = " ("
+                            for roll in diceRoll:
+                                rollStr = rollStr + str(roll) + ", "
+                            rollStr = rollStr[:-2]+")"
+                        else:
+                            rollStr = ""
+                        if mod == 0:
+                            modStr = ""
+                        else:
+                            modStr = "+{}".format(str(mod)) if mod>0 else str(mod) if mod<0 else ""
+                        poneMsg.append("Result of rolling {}: {}{}{}".format(poneCommand, diceResult, rollStr, modStr))
+                except:
+                    poneMsg.append("Unrecognized dice format.")
+
             for Msg in poneMsg:
                 if testMode == True:
                     print(channel, Msg)
                 else:
-                    irc.send(channel, Msg)
+                    if (len(Msg) > 400) and (len(Msg.split(" ")) > 1):
+                        for Msge in longMsgs(Msg)[:3]:
+                            irc.send(channel, Msge)
+                    else:
+                        irc.send(channel, Msg)
 
     except Exception as e:
         with open("ponerr.log", "a") as f:
