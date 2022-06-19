@@ -303,11 +303,11 @@ def weatherMessage(lat,lon):
     tomorrowWindDir = degToCompass(tomorrow["wind_deg"])
     tomorrowDesc1 = tomorrow["weather"][0]["main"]
     tomorrowDesc2 = tomorrow["weather"][0]["description"]
-    tomorrowPop = str(tomorrow["pop"])+"%"
-    try:
+    tomorrowPop = str(round(tomorrow["pop"]*100,1))+"%"
+    if "alerts" in json_obj:
         alerts = json_obj["alerts"][0]
         alertDesc = alerts["description"].replace("\n"," ")
-    except:
+    else:
         alertDesc = ""
     return [todayDay,currentDesc1,currentDesc2,currentTempF,currentTempC,currentFeelF,currentFeelC,currentHumid,currentWindmph,currentWindkph,currentWindDir,
             tomorrowDay,tomorrowDesc1,tomorrowDesc2,tomorrowPop,tomorrowHighF,tomorrowHighC,tomorrowLowF,tomorrowLowC,tomorrowHumidity,tomorrowWindmph,tomorrowWindkph,tomorrowWindDir,alertDesc]
@@ -318,7 +318,12 @@ def sunLookup(lat,lon):
     json_obj = r.json()
     sunrise = time.strftime("%I:%M %p", time.gmtime(json_obj["current"]["sunrise"]+json_obj["timezone_offset"]))
     sunset = time.strftime("%I:%M %p", time.gmtime(json_obj["current"]["sunset"]+json_obj["timezone_offset"]))
-    return [sunrise, sunset]
+    moonrise = time.strftime("%I:%M %p", time.gmtime(json_obj["daily"][0]["moonrise"]+json_obj["timezone_offset"]))
+    moonset = time.strftime("%I:%M %p", time.gmtime(json_obj["daily"][0]["moonset"]+json_obj["timezone_offset"]))
+    moonphase = json_obj["daily"][0]["moon_phase"]
+    phases = [["🌑 New moon", "🌓 First quarter", "🌕 Full moon", "🌗 Last quarter", "🌑 New moon"], ["🌒 Waxing crescent","🌔 Waxing gibbous","🌖 Waning gibbous","🌘 Waning crescent"]]
+    phase = (phases[0][int(moonphase*4)] if moonphase%0.25 == 0.0 else phases[1][math.floor(moonphase*4)])
+    return [sunrise, sunset, moonrise, moonset, phase]
 
 def dubschecker(numb, length):
     i = len(numb)-1
@@ -337,12 +342,15 @@ def dubschecker(numb, length):
         return checky,numb
         
 def goComics(date,comic):
+    end = datetime.datetime.now()
     if comic == "cathy":
         start = datetime.datetime.strptime("11/22/1976", "%m/%d/%Y")
-        end = datetime.datetime.now()
     elif comic == "heathcliff":
         start = datetime.datetime.strptime("01/01/2002", "%m/%d/%Y")
-        end = datetime.datetime.now()
+    elif comic == "pluggers":
+        start = datetime.datetime.strptime("04/08/2001", "%m/%d/%Y")
+    elif comic == "garfield":
+        start = datetime.datetime.strptime("06/19/1978", "%m/%d/%Y")
     print("Retrieving {} from {}".format(comic, date))
     urlTerm = "https://www.gocomics.com/{}/{}/{}/{}"
     comicDate = start + datetime.timedelta(seconds=random.randint(0,int((end-start).total_seconds())))
@@ -355,7 +363,10 @@ def goComics(date,comic):
                 pass
     elif "today" in date:
         comicDate = datetime.datetime.now()
-    url = urlTerm.format(comic, comicDate.strftime("%Y"), comicDate.strftime("%m"),comicDate.strftime("%d")
+    url = urlTerm.format(comic, 
+                        comicDate.strftime("%Y"), 
+                        comicDate.strftime("%m"),
+                        comicDate.strftime("%d")
         )
     try:
         r = requests.get(url)
@@ -389,33 +400,6 @@ def randImgur(num):
         imgUrl = imgurGen()
         irc.send(channel, imgUrl)
         j+=1
-
-def garfplug(date,GP):
-    if GP == "garf":
-        start = datetime.datetime.strptime("06/19/1978", "%m/%d/%Y")
-        urlTerm = "http://images.ucomics.com/comics/ga/{}/ga{}{}{}.gif"
-    elif GP == "plug":
-        start = datetime.datetime.strptime("04/08/2001", "%m/%d/%Y")
-        urlTerm = "http://picayune.uclick.com/comics/tmplu/{}/tmplu{}{}{}.gif"
-    end = datetime.datetime.now()
-    gpDate = start + datetime.timedelta(seconds=random.randint(0,int((end-start).total_seconds())))
-    if "/" in date:
-        for fmt in ("%m/%d/%y","%m/%d/%Y"):
-            try:
-                gpDate = datetime.datetime.strptime(date,fmt)
-            except:
-                pass
-    elif "today" in date:
-        gpDate = datetime.datetime.now()
-    url = urlTerm.format(
-        gpDate.strftime("%Y"),gpDate.strftime("%y"),gpDate.strftime("%m"),gpDate.strftime("%d")
-        )
-    try:
-        urlopen(url)
-    except HTTPError:
-        irc.send (channel, "Comic not found. For best results, input date in MM/DD/YYYY format.")
-    else:
-        irc.send (channel, url)
 
 def generateHash(fTypeA,fTypeDir):
     N = 5
@@ -970,7 +954,7 @@ while xxx == True:
                 if place != 0:
                     try:
                         sunTime = sunLookup(lat,lon)
-                        poneMsg.append("{} - Sunrise: {} Sunset: {}".format(place, sunTime[0],sunTime[1]))
+                        poneMsg.append("{} - 🌅 Sunrise: {}, 🌇 Sunset: {} || Moonrise: {}, Moonset: {} ({})".format(place, *sunTime))
                     except:
                         poneMsg.append("Error retrieving sunrise/sunset times.")
 ##WEATHER   
@@ -995,19 +979,21 @@ while xxx == True:
                     poneMsg.append("Looks like you don't have a location set! Use $we set [location].")
 
             if action == "$garf":
-                garfplug(poneCommand,"garf")
-            
+                #garfplug(poneCommand,"garf")
+                goComics(poneCommand, "garfield")
+
             if action == "$pluggers":
-                garfplug(poneCommand,"plug")
-           
+                #garfplug(poneCommand,"plug")
+                goComics(poneCommand,"pluggers")
+
             if action == "$cathy":
                 goComics(poneCommand,"cathy")
             if action == "$heath":
                 goComics(poneCommand,"heathcliff")
 
             if action == "$morningwug":
-                garfplug("today","garf")
-                garfplug("today","plug")
+                goComics("today","garfield")
+                goComics("today","pluggers")
                 goComics("today","cathy")
                 goComics("today","heathcliff")
                 randImgur("5")
