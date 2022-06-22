@@ -72,7 +72,7 @@ poneCommands = ["$quote", "$mention", "$Quote", "$Mention",                     
                 "$wiki", "$page", "$korannext", "$koran",                           #20-23
                 "$bible", "$all","$stock", "$retweet",                              #24-27
                 "$garf", "$pluggers", "$sup", "$tweet",                             #28-31
-                "$gis", "$g", "$yt",                                                #32-35
+                "$gis", "$g", "$yt", "$alert",                                       #32-35
                 "$we", "$adom", "$next", "$timer",                                  #36-39
                 "$timeleft", "$choose", "$tell", "$tv_next",                        #40-43
                 "$tv_last", "$honk", "$commandlist", "$help",                       #44-47
@@ -84,7 +84,7 @@ flexCommands = ["$bible","$koran","$we","$sun","$cathy","$heath","$pluggers","$g
 
 noInput = ["$help", "$korannext", "$bogpill", "$page",
            "$fun milo", "$explain", "$next", "$wiki", "$morningwug",
-           "$rand", "$legalweed", "$urwfeels", "$commandlist"]
+           "$rand", "$legalweed", "$urwfeels", "$commandlist", "$alert"]
 
 boards = ["$rule34","$paheal","$dan","$pony"]
 
@@ -306,11 +306,14 @@ def weatherMessage(lat,lon):
     tomorrowPop = str(round(tomorrow["pop"]*100,1))+"%"
     if "alerts" in json_obj:
         alerts = json_obj["alerts"][0]
+        alertEvent = alerts["event"]
         alertDesc = alerts["description"].replace("\n"," ")
     else:
+        alertEvent = ""
         alertDesc = ""
     return [todayDay,currentDesc1,currentDesc2,currentTempF,currentTempC,currentFeelF,currentFeelC,currentHumid,currentWindmph,currentWindkph,currentWindDir,
-            tomorrowDay,tomorrowDesc1,tomorrowDesc2,tomorrowPop,tomorrowHighF,tomorrowHighC,tomorrowLowF,tomorrowLowC,tomorrowHumidity,tomorrowWindmph,tomorrowWindkph,tomorrowWindDir,alertDesc]
+            tomorrowDay,tomorrowDesc1,tomorrowDesc2,tomorrowPop,tomorrowHighF,tomorrowHighC,tomorrowLowF,tomorrowLowC,tomorrowHumidity,tomorrowWindmph,tomorrowWindkph,tomorrowWindDir,
+            alertEvent,alertDesc]
 
 def sunLookup(lat,lon):
     url = "https://api.openweathermap.org/data/3.0/onecall?lat={}&lon={}&appid={}".format(lat,lon,os.environ.get("wxKey"))
@@ -968,15 +971,23 @@ while xxx == True:
                 if place != 0:
                     try:
                         datas = weatherMessage(lat,lon)
-                        wxMsg = "{} {}: {} - {}. {}\xb0F ({}\xb0C) Feels like: {}\xb0F ({}\xb0C). Humidity {}. Wind: {} mph ({} kph) {}. Tomorrow {}: {} - {}. {} chance of precip. High {}\xb0F ({}\xb0C). Low {}\xb0F ({}\xb0C). Humidity {}. Wind: {} mph ({} kph) {}.".format(place, *datas[:-1])
+                        wxMsg = "{} {}: {} - {}. {}\xb0F ({}\xb0C) Feels like: {}\xb0F ({}\xb0C). Humidity {}. Wind: {} mph ({} kph) {}. Tomorrow {}: {} - {}. {} chance of precip. High {}\xb0F ({}\xb0C). Low {}\xb0F ({}\xb0C). Humidity {}. Wind: {} mph ({} kph) {}.".format(place, *datas[:-2])
                         print(wxMsg)
-                        poneMsg.append(wxMsg)
                         if datas[-1] != "":
-                            poneMsg.append(datas[-1])
-                    except:
+                            wxMsg = "{} ALERT: {}".format(wxMsg, datas[-2])
+                            alert = datas[-1] 
+                        poneMsg.append(wxMsg)
+                    except Exception as e:
+                        print(e)
                         poneMsg.append("Error retrieving weather.")
                 else:
                     poneMsg.append("Looks like you don't have a location set! Use $we set [location].")
+            
+            if action == "$alert":
+                try:
+                    poneMsg.append(alert)
+                except:
+                    pass
 
             if action == "$garf":
                 #garfplug(poneCommand,"garf")
