@@ -30,7 +30,7 @@ from operator import itemgetter
 channels = ["#kame-house","#death","#ponycafe","#cupcake","#equestria","#titties"]
 #channels = ["#equestria"]
 channel = ""
-server = "moo.slashnet.org"
+server = "spaniels.slashnet.org"
 irc = IRCBot()
 load_dotenv()
 if len(sys.argv)>1:
@@ -72,15 +72,15 @@ poneCommands = ["$quote", "$mention", "$Quote", "$Mention",                     
                 "$wiki", "$page", "$korannext", "$koran",                           #20-23
                 "$bible", "$all","$stock", "$retweet",                              #24-27
                 "$garf", "$pluggers", "$sup", "$tweet",                             #28-31
-                "$gis", "$g", "$yt", "$alert",                                       #32-35
-                "$we", "$adom", "$next", "$timer",                                  #36-39
+                "$gis", "$g", "$yt", "$alert", "$topgis",                           #32-35
+                "$we", "$adom", "$next", "$timer", "$9cl",                          #36-39
                 "$timeleft", "$choose", "$tell", "$tv_next",                        #40-43
                 "$tv_last", "$honk", "$commandlist", "$help",                       #44-47
                 "$fun milo", "$bogpill", "$rand", "$legalweed",                     #48-51
                 "$urwfeels","$commandlist","!search", "$trends",                   #52-54
                 "$frandom", "$dice", "$cathy","$heath","$morningwug","$sun"]
 
-flexCommands = ["$bible","$koran","$we","$sun","$cathy","$heath","$pluggers","$garf","$hey","$timeleft","$honk"]
+flexCommands = ["$bible","$koran","$we","$sun","$cathy","$heath","$pluggers","$garf","$hey","$timeleft","$honk", "$9cl"]
 
 noInput = ["$help", "$korannext", "$bogpill", "$page",
            "$fun milo", "$explain", "$next", "$wiki", "$morningwug",
@@ -164,10 +164,10 @@ def logsearch(tag, sort, firstlast, caseSens, rawrKame): #sort = 0 for $mention,
 
 def googlequery(query,searchtype): #searchtype 0 for regular search, 1 for image search
     try:
-        resultnum = str(random.randint(1,100))
         if searchtype == 0:
             url = "https://www.googleapis.com/customsearch/v1?&q={}&num=1&key={}&cx={}".format(query, os.environ.get('gapikey'), os.environ.get('cx'))
-        elif searchtype == 1:
+        elif searchtype == 1 or searchtype == 2:
+            resultnum = str(random.randint(1,100)) if searchtype == 1 else "1"
             url = "https://www.googleapis.com/customsearch/v1?&q={}&searchType=image&start={}&num=1&key={}&cx={}".format(query, resultnum, os.environ.get('gapikey'), os.environ.get('cx'))
         r = requests.get(url, headers=headers, timeout=(2,5))
         json_obj = r.json()
@@ -291,6 +291,11 @@ def weatherMessage(lat,lon):
     currentWindmph = str(round(current["wind_speed"]*1.60934,1))
     currentDesc1 = current["weather"][0]["main"]
     currentDesc2 = current["weather"][0]["description"]
+    today = json_obj["daily"][0]
+    todayHighF = str((round((today["temp"]["max"]-273.15)*(9/5)+32,1)))
+    todayHighC = str(round(today["temp"]["max"]-273.15,1))
+    todayLowF = str((round((today["temp"]["min"]-273.15)*(9/5)+32,1)))
+    todayLowC = str(round(today["temp"]["min"]-273.15,1))
     tomorrow = json_obj["daily"][1]
     tomorrowDay = time.strftime("%m/%d/%y", time.gmtime(tomorrow["dt"]))
     tomorrowHighC = str(round(tomorrow["temp"]["max"]-273.15,1))
@@ -311,7 +316,7 @@ def weatherMessage(lat,lon):
     else:
         alertEvent = ""
         alertDesc = ""
-    return [todayDay,currentDesc1,currentDesc2,currentTempF,currentTempC,currentFeelF,currentFeelC,currentHumid,currentWindmph,currentWindkph,currentWindDir,
+    return [todayDay,currentDesc1,currentDesc2,currentTempF,currentTempC,currentFeelF,currentFeelC,todayHighF,todayHighC,todayLowF,todayLowC,currentHumid,currentWindmph,currentWindkph,currentWindDir,
             tomorrowDay,tomorrowDesc1,tomorrowDesc2,tomorrowPop,tomorrowHighF,tomorrowHighC,tomorrowLowF,tomorrowLowC,tomorrowHumidity,tomorrowWindmph,tomorrowWindkph,tomorrowWindDir,
             alertEvent,alertDesc]
 
@@ -354,6 +359,9 @@ def goComics(date,comic):
         start = datetime.datetime.strptime("04/08/2001", "%m/%d/%Y")
     elif comic == "garfield":
         start = datetime.datetime.strptime("06/19/1978", "%m/%d/%Y")
+    elif comic == "9chickweedlane":
+        start = datetime.datetime.strptime("07/12/1993", "%m/%d/%Y")
+
     print("Retrieving {} from {}".format(comic, date))
     urlTerm = "https://www.gocomics.com/{}/{}/{}/{}"
     comicDate = start + datetime.timedelta(seconds=random.randint(0,int((end-start).total_seconds())))
@@ -971,10 +979,10 @@ while xxx == True:
                 if place != 0:
                     try:
                         datas = weatherMessage(lat,lon)
-                        wxMsg = "{} {}: {} - {}. {}\xb0F ({}\xb0C) Feels like: {}\xb0F ({}\xb0C). Humidity {}. Wind: {} mph ({} kph) {}. Tomorrow {}: {} - {}. {} chance of precip. High {}\xb0F ({}\xb0C). Low {}\xb0F ({}\xb0C). Humidity {}. Wind: {} mph ({} kph) {}.".format(place, *datas[:-2])
+                        wxMsg = "{} {}: {} - {}. {}\xb0F ({}\xb0C) Feels like: {}\xb0F ({}\xb0C). High: {}\xb0F ({}\xb0C), Low: {}\xb0F ({}\xb0C). Humidity {}. Wind: {} mph ({} kph) {}. Tomorrow {}: {} - {}. {} chance of precip. High {}\xb0F ({}\xb0C). Low {}\xb0F ({}\xb0C). Humidity {}. Wind: {} mph ({} kph) {}.".format(place, *datas[:-2])
                         print(wxMsg)
                         if datas[-1] != "":
-                            wxMsg = "{} ALERT: {}".format(wxMsg, datas[-2])
+                            wxMsg = "{} \x04🚨ALERT🚨: {}".format(wxMsg, datas[-2])
                             alert = datas[-1] 
                         poneMsg.append(wxMsg)
                     except Exception as e:
@@ -1001,6 +1009,8 @@ while xxx == True:
                 goComics(poneCommand,"cathy")
             if action == "$heath":
                 goComics(poneCommand,"heathcliff")
+            if action == "$9cl":
+                goComics(poneCommand,"9chickweedlane")
 
             if action == "$morningwug":
                 goComics("today","garfield")
@@ -1449,6 +1459,11 @@ while xxx == True:
             if action == "$gis" and goodCommand == 1:
                 result = googlequery(poneCommand,1)
                 print(result)
+                doImage(textNick, result, "($gis {})".format(poneCommand))
+                poneMsg.append(result)
+            
+            if action == "$topgis" and goodCommand == 1:
+                result = googlequery(poneCommand,2)
                 doImage(textNick, result, "($gis {})".format(poneCommand))
                 poneMsg.append(result)
 
